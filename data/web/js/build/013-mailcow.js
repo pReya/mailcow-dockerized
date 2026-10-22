@@ -417,3 +417,81 @@ function copyToClipboard(id) {
   navigator.clipboard.writeText(copyText.value);
   mailcow_alert_box(lang.copy_to_clipboard, "success");
 }
+
+// Configurable table columns
+// Columns marked with "configurable: false" are always shown and not listed in the picker.
+// Columns the user unchecks are moved into the responsive child row instead of being removed,
+// so their data stays reachable via the row's expand toggle.
+function loadTableColumns(table_id) {
+  try {
+    var prefs = JSON.parse(localStorage.getItem('mailcow_columns_' + table_id));
+    if (prefs && typeof prefs === 'object') return prefs;
+  } catch {}
+  return {};
+}
+function saveTableColumns(table_id, prefs) {
+  try {
+    if (Object.keys(prefs).length === 0)
+      localStorage.removeItem('mailcow_columns_' + table_id);
+    else
+      localStorage.setItem('mailcow_columns_' + table_id, JSON.stringify(prefs));
+  } catch {}
+}
+function isConfigurableColumn(column) {
+  return column.configurable !== false && typeof column.data === 'string' && column.title !== '';
+}
+function applyTableColumns(table_id, columns) {
+  var prefs = loadTableColumns(table_id);
+  columns.forEach(function(column) {
+    if (!isConfigurableColumn(column)) return;
+    var classes = (column.className || '').split(' ').filter(Boolean);
+    column.defaultShown = !classes.includes('none');
+    var shown = prefs.hasOwnProperty(column.data) ? prefs[column.data] : column.defaultShown;
+    classes = classes.filter(function(c) { return c !== 'none'; });
+    if (!shown) classes.push('none');
+    column.className = classes.join(' ');
+  });
+  return columns;
+}
+function drawTableColumnPicker(table_id, columns, redraw) {
+  var picker = $('.table-column-picker[data-table="' + table_id + '"]');
+  if (!picker.length) return;
+  var labels = (typeof lang_datatables !== 'undefined') ? lang_datatables : {};
+  var prefs = loadTableColumns(table_id);
+
+  picker.empty();
+  picker.append($('<li class="dropdown-header"></li>').text(labels.columns_show || 'Show as column'));
+  columns.forEach(function(column) {
+    if (!isConfigurableColumn(column)) return;
+    var shown = prefs.hasOwnProperty(column.data) ? prefs[column.data] : column.defaultShown;
+    var checkbox = $('<input type="checkbox" class="form-check-input me-2">')
+      .prop('checked', shown)
+      .on('change', function() {
+        var prefs = loadTableColumns(table_id);
+        if ($(this).prop('checked') === column.defaultShown)
+          delete prefs[column.data];
+        else
+          prefs[column.data] = $(this).prop('checked');
+        saveTableColumns(table_id, prefs);
+        redraw();
+      });
+    picker.append($('<li></li>').append($('<label class="dropdown-item"></label>').append(checkbox, $('<span></span>').text(column.title))));
+  });
+  picker.append('<li><hr class="dropdown-divider"></li>');
+  picker.append($('<li></li>').append(
+    $('<a class="dropdown-item" href="#"></a>')
+      .text(labels.columns_reset || 'Reset to default')
+      .on('click', function(e) {
+        e.preventDefault();
+        saveTableColumns(table_id, {});
+        redraw();
+      })
+  ));
+}
+function redrawTable(table_id, draw) {
+  if ($.fn.DataTable.isDataTable('#' + table_id)) {
+    $('#' + table_id).DataTable().destroy();
+    $('#' + table_id).empty();
+  }
+  draw();
+}

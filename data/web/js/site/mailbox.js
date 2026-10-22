@@ -540,7 +540,7 @@ jQuery(function($){
           return json.data;
         }
       },
-      columns: [
+      columns: applyTableColumns('domain_table', [
         {
           // placeholder, so checkbox will not block child row toggle
           title: '',
@@ -561,6 +561,7 @@ jQuery(function($){
         {
           title: lang.domain,
           data: 'domain_h_name',
+          configurable: false,
           responsivePriority: 3,
           defaultContent: ''
         },
@@ -670,17 +671,22 @@ jQuery(function($){
         {
           title: lang.action,
           data: 'action',
+          configurable: false,
           searchable: false,
           orderable: false,
           className: 'dt-sm-head-hidden dt-data-w100 dtr-col-md dt-text-right',
           responsivePriority: 5,
           defaultContent: ''
         },
-      ]
+      ])
     });
 
     table.on('responsive-resize', function (e, datatable, columns){
       hideTableExpandCollapseBtn('#tab-domains', '#domain_table');
+    });
+
+    drawTableColumnPicker('domain_table', table.init().columns, function(){
+      redrawTable('domain_table', draw_domain_table);
     });
   }
   function draw_templates_domain_table() {
@@ -948,14 +954,14 @@ jQuery(function($){
             } else {
               item.last_pw_change = '-';
             }
-            item.tls_enforce_in = '<i class="text-' + (item.attributes.tls_enforce_in == 1 ? 'success bi bi-lock-fill' : 'danger bi bi-unlock-fill') + '"></i>';
-            item.tls_enforce_out = '<i class="text-' + (item.attributes.tls_enforce_out == 1 ? 'success bi bi-lock-fill' : 'danger bi bi-unlock-fill') + '"></i>';
-            item.pop3_access = '<i class="text-' + (item.attributes.pop3_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.pop3_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
-            item.imap_access = '<i class="text-' + (item.attributes.imap_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.imap_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
-            item.smtp_access = '<i class="text-' + (item.attributes.smtp_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.smtp_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
-            item.sieve_access = '<i class="text-' + (item.attributes.sieve_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.sieve_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
-            item.eas_access = '<i class="text-' + (item.attributes.eas_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.eas_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
-            item.dav_access = '<i class="text-' + (item.attributes.dav_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.dav_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
+            item.tls_enforce = '<span class="me-2 text-nowrap" title="' + escapeHtml(lang.tls_enforce_in) + '"><i class="bi bi-box-arrow-in-down"></i> <i class="text-' + (item.attributes.tls_enforce_in == 1 ? 'success bi bi-lock-fill' : 'danger bi bi-unlock-fill') + '"></i></span>' +
+                               '<span class="text-nowrap" title="' + escapeHtml(lang.tls_enforce_out) + '"><i class="bi bi-box-arrow-up"></i> <i class="text-' + (item.attributes.tls_enforce_out == 1 ? 'success bi bi-lock-fill' : 'danger bi bi-unlock-fill') + '"></i></span>';
+            item.protocols = $.map([['SMTP', 'smtp_access'], ['IMAP', 'imap_access'], ['POP3', 'pop3_access'], ['SIEVE', 'sieve_access'], ['EAS', 'eas_access'], ['DAV', 'dav_access']], function(protocol) {
+              var allowed = item.attributes[protocol[1]] == 1;
+              return '<div class="text-nowrap"><i class="text-' + (allowed ? 'success bi bi-check-lg' : 'danger bi bi-x-lg') + '"></i> ' + protocol[0] + '</div>';
+            }).join('');
+            item.quarantine_notification = '';
+            item.quarantine_category = '';
             if (item.attributes.quarantine_notification === 'never') {
               item.quarantine_notification = lang.never;
             } else if (item.attributes.quarantine_notification === 'hourly') {
@@ -972,6 +978,8 @@ jQuery(function($){
             } else if (item.attributes.quarantine_category === 'all') {
               item.quarantine_category = lang.q_all;
             }
+            // the category only matters when notifications are sent
+            item.quarantine = item.quarantine_notification + (item.quarantine_category && item.attributes.quarantine_notification !== 'never' ? ', ' + item.quarantine_category : '');
             if (acl_data.login_as === 1) {
 
               item.action = '<div class="btn-group">' +
@@ -1011,7 +1019,7 @@ jQuery(function($){
           return json.data;
         }
       },
-      columns: [
+      columns: applyTableColumns('mailbox_table', [
         {
           // placeholder, so checkbox will not block child row toggle
           title: '',
@@ -1032,6 +1040,7 @@ jQuery(function($){
         {
           title: lang.username,
           data: 'username',
+          configurable: false,
           responsivePriority: 3,
           defaultContent: ''
         },
@@ -1072,12 +1081,14 @@ jQuery(function($){
         {
           title: lang.domain,
           data: 'domain',
+          orderable: false,
           defaultContent: '',
           className: 'none',
         },
         {
           title: lang.iam,
           data: 'authsource',
+          orderable: false,
           defaultContent: '',
           className: 'none',
           render: function (data, type) {
@@ -1085,62 +1096,26 @@ jQuery(function($){
           }
         },
         {
-          title: lang.tls_enforce_in,
-          data: 'tls_enforce_in',
+          title: 'TLS',
+          data: 'tls_enforce',
+          searchable: false,
+          orderable: false,
           defaultContent: '',
           className: 'none'
         },
         {
-          title: lang.tls_enforce_out,
-          data: 'tls_enforce_out',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: 'SMTP',
-          data: 'smtp_access',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: 'IMAP',
-          data: 'imap_access',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: 'POP3',
-          data: 'pop3_access',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: 'SIEVE',
-          data: 'sieve_access',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: 'EAS',
-          data: 'eas_access',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: 'DAV',
-          data: 'dav_access',
+          title: lang.allowed_protocols,
+          data: 'protocols',
+          searchable: false,
+          orderable: false,
           defaultContent: '',
           className: 'none'
         },
         {
           title: lang.quarantine_notification,
-          data: 'quarantine_notification',
-          defaultContent: '',
-          className: 'none'
-        },
-        {
-          title: lang.quarantine_category,
-          data: 'quarantine_category',
+          data: 'quarantine',
+          searchable: false,
+          orderable: false,
           defaultContent: '',
           className: 'none'
         },
@@ -1154,12 +1129,14 @@ jQuery(function($){
         {
           title: lang.created_on,
           data: 'created',
+          orderable: false,
           defaultContent: '',
           className: 'none'
         },
         {
           title: lang.last_modified,
           data: 'modified',
+          orderable: false,
           defaultContent: '',
           className: 'none'
         },
@@ -1167,6 +1144,7 @@ jQuery(function($){
           title: 'Tags',
           data: 'tags',
           searchable: true,
+          orderable: false,
           defaultContent: '',
           className: 'none'
         },
@@ -1183,17 +1161,22 @@ jQuery(function($){
         {
           title: lang.action,
           data: 'action',
+          configurable: false,
           searchable: false,
           orderable: false,
           className: 'dt-sm-head-hidden dt-data-w100 dtr-col-md dt-text-right',
           responsivePriority: 6,
           defaultContent: ''
         }
-      ]
+      ])
     });
 
     table.on('responsive-resize', function (e, datatable, columns){
       hideTableExpandCollapseBtn('#tab-mailboxes', '#mailbox_table');
+    });
+
+    drawTableColumnPicker('mailbox_table', table.init().columns, function(){
+      redrawTable('mailbox_table', draw_mailbox_table);
     });
   }
   function draw_templates_mbox_table() {
