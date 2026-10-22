@@ -442,6 +442,13 @@ function isConfigurableColumn(column) {
 }
 function applyTableColumns(table_id, columns) {
   var prefs = loadTableColumns(table_id);
+  // Columns the user switched on rank right after the fixed ones, so on narrow screens
+  // the responsive extension moves default columns into the child row before them
+  var fixed_priority = 0;
+  columns.forEach(function(column) {
+    if (!isConfigurableColumn(column) && typeof column.responsivePriority === 'number')
+      fixed_priority = Math.max(fixed_priority, column.responsivePriority);
+  });
   columns.forEach(function(column) {
     if (!isConfigurableColumn(column)) return;
     var classes = (column.className || '').split(' ').filter(Boolean);
@@ -449,6 +456,8 @@ function applyTableColumns(table_id, columns) {
     var shown = prefs.hasOwnProperty(column.data) ? prefs[column.data] : column.defaultShown;
     classes = classes.filter(function(c) { return c !== 'none'; });
     if (!shown) classes.push('none');
+    if (shown && !column.defaultShown)
+      column.responsivePriority = fixed_priority + 0.5;
     column.className = classes.join(' ');
   });
   return columns;
@@ -489,9 +498,24 @@ function drawTableColumnPicker(table_id, columns, redraw) {
   ));
 }
 function redrawTable(table_id, draw) {
+  var open_rows = [];
   if ($.fn.DataTable.isDataTable('#' + table_id)) {
-    $('#' + table_id).DataTable().destroy();
+    var table = $('#' + table_id).DataTable();
+    // remember expanded child rows, the rebuilt table would otherwise show them collapsed
+    open_rows = table.rows(function(idx, data, node) { return $(node).hasClass('parent'); }).indexes().toArray();
+    table.destroy();
     $('#' + table_id).empty();
+  }
+  if (open_rows.length) {
+    $('#' + table_id).one('init.dt', function() {
+      var table = $('#' + table_id).DataTable();
+      if (!table.responsive.hasHidden()) return;
+      open_rows.forEach(function(idx) {
+        var node = table.row(idx).node();
+        if (node && !$(node).hasClass('parent'))
+          $(node).children('td').first().trigger('click');
+      });
+    });
   }
   draw();
 }
